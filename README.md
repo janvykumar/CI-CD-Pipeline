@@ -1,3 +1,0 @@
-<<<<<<< HEAD
-# CI-CD-Pipeline
-
