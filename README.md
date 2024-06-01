@@ -72,8 +72,11 @@ kubernetes is setup.
 ### Create VM's for Sonar, Nexus and Jenkins
 
 Launch two instances for sonar and nexus.
+
 parameters : Ubuntu 22.04 AMI and instance type t2.medium. Add the security group 'ci/cd-sg'. Configure storage as 20 Gib.
+
 Launch a bigger instance for Jenkins of type Ubuntu 22.04 t2.large with storage of 30 Gib. Add the existing sg 'ci/cd-sg'
+
 Let's setup each of them.
 
 #### Configure SonarQube
@@ -114,6 +117,7 @@ $ docker run -d --name Nexus -p 8081:8081 sonatype/nexus3
 $ docker ps
 ```
 Hit ipaddress:8081. Nexus should be up and running. 
+
 Sign in --> default username is admin. To get the password, follow the below steps.
 ```bash
 $ docker exec -it b95917a0a690 /bin/bash
@@ -126,6 +130,7 @@ Get the password from the above path and login to nexus after which you can upda
 #### Configure Jenkins
 
 Connect to the Jenkins instance,
+
 Install Java
 ```bash
 $ sudo apt update
@@ -165,8 +170,7 @@ Hit Ipaddress:8080 --> get the passowrd from:
 ```bash
 sudo cat /var/lib/jenkins/secrets/initialAdminPassword
 ```
-Install suggested plugins
-Create your username and password - save and finish.
+Install suggested plugins --> Create your username and password --> save and finish.
 
 ![Jenkins](https://github.com/janvykumar/CI-CD-Pipeline/blob/main/Jenkins.png?raw=true)
 
@@ -188,6 +192,13 @@ $ git clone https://github.com/janvykumar/CI-CD-Pipeline.git
 ```
 
 ## Phase 3 : CI/CD Pipeline, Deployemnt of Application, Mail notification
+
+### Create DockerHub credentials and create Repository, Add docker credentials to Jenkins
+
+Create an account in DockerHub if you don't have one. Login and create a Repository.
+
+Manage jenkins --> credentials --> system --> global credentials --> add credentials -> Add username and password of your Docker account.
+
 
 ### Install Plugins for Jenkins
 
@@ -227,7 +238,7 @@ Manage jenkins --> credentials --> system --> global credentials --> add credent
 
 ### Create SonarQube webhook
 
-Go to Sonar UI --> administration --> configuration --> webhooks --> create --> name - 'jenkins' --> url should be '<jenkins-url>/sonarqube-webhook/' --> Create.
+Go to Sonar UI --> administration --> configuration --> webhooks --> create --> name - 'jenkins' --> url should be 'jenkins-url/sonarqube-webhook/' --> Create.
 
 ![sonar-webhook](https://github.com/janvykumar/CI-CD-Pipeline/blob/main/SonarQube-webhook.png?raw=true)
 
@@ -390,12 +401,16 @@ Inside Configure, write the pipeline script. Refer to 'pipeline-script' file of 
 
 ### Run the job.
 
+#### Successful Job
 ![successful-job](https://github.com/janvykumar/CI-CD-Pipeline/blob/main/Build.png?raw=true)
 
+#### SonarQube - Code Quality Analysis
 ![SonarQube](https://github.com/janvykumar/CI-CD-Pipeline/blob/main/Sonar-boardgame.png?raw=true)
 
+#### Nexus - Artifact management
 ![nexus](https://github.com/janvykumar/CI-CD-Pipeline/blob/main/maven-boardgame.png?raw=true)
 
+#### E-mail Notification
 ![mail](https://github.com/janvykumar/CI-CD-Pipeline/blob/main/mail-notification.png?raw=true)
 
 With that, our CI/CD Pipeline in complete
@@ -430,7 +445,7 @@ $ tar -xvf blackbox_exporter-0.25.0.linux-amd64.tar.gz
 $ cd blackbox_exporter-0.25.0.linux-amd64/
 $ ./blackbox_exporter &
 ```
-hit http:IP:9115/
+Hit http://IP:9115/
 
 ### Configure prometheus.yaml file
 ```bash
@@ -472,13 +487,13 @@ $ ./prometheus &
 ```
 Refresh prometheus UI --> status --> targets --> You should be able to see the targets up and healthy.
 
-![prometheus-targets]()
+![prometheus-targets](https://github.com/janvykumar/CI-CD-Pipeline/blob/main/Prometheus-targets.png?raw=true)
 
 ### Add prometheus as data source inside Grafana
 
 Go to grafana --> connections --> data sources --> add data source --> prometheus --> provide prometheus url --> save and test.
 
-+ sign --> import dashboard
+Click on '+' sign --> import dashboard
 
 Go to https://grafana.com/grafana/dashboards/7587-prometheus-blackbox-exporter/ to export the dashboard to our grafana dashboard --> get the id from the link.
 
@@ -486,7 +501,8 @@ Come back to your grafana UI for importing dashboard --> paste and load the dash
 
 You will see all the metrices. 
 
-![Application-monitoring]()
+#### Application monitoring
+![Application-monitoring](https://github.com/janvykumar/CI-CD-Pipeline/blob/main/Application-monitoring.png?raw=true)
 
 We have setup monitoring for the Application!
 
@@ -535,11 +551,12 @@ You will see jenkins added to prometheus. Check out the above screenshot of prom
 
 Import https://grafana.com/grafana/dashboards/1860-node-exporter-full/ to our Grafana dashboard --> get the ID from the link.
 
-Copy ID in our dashboard and load --> select prometheus datasource.
+Copy ID in our dashboard and load --> select prometheus datasource --> Import
+
+#### System monitoring (Jenkins)
+![system-monitoring](https://github.com/janvykumar/CI-CD-Pipeline/blob/main/system-monitoring.png?raw=true)
 
 Our system monitoring for Jenkins is ready.
-
-![system-monitoring]()
 
 
 
