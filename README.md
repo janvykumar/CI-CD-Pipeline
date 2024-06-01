@@ -12,7 +12,7 @@ Phase 3 - CI/CD Pipeline, Deployemnt of Application, Mail notification
 
 Phase 4 - Setup monitoring
 
-## Setting up Infrastructure
+## Phase 1 : Setting up Infrastructure
 
 ### Create VPC
 AWS management console --> VPC --> create VPC
@@ -100,78 +100,74 @@ $ docker ps
 Hit Ipaddress:9000 in your browser. It should give you the login page for Sonar.
 Default user and password is admin and admin respectively. Update your password and sonar is ready to use.
 
+![SonarQube](https://github.com/janvykumar/CI-CD-Pipeline/blob/main/SonarQube.png?raw=true)
 
+#### Configure Nexus
 
+In Nexus instance,
 
-
-Configuring Nexus
-
-# Add Docker's official GPG key:
-sudo apt-get update
-sudo apt-get install ca-certificates curl
-sudo install -m 0755 -d /etc/apt/keyrings
-sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-sudo chmod a+r /etc/apt/keyrings/docker.asc
-
-# Add the repository to Apt sources:
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-sudo apt-get update
-
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-sudo chmod 666 /var/run/docker.sock
-
-creating docker container for nexus --> docker run -d --name Nexus -p 8081:8081 sonatype/nexus3
-docker ps
+Run the same commands to install Docker as done while configuring SonarQube. Then create docker container by running the below command.
+```bash
+$ docker run -d --name Nexus -p 8081:8081 sonatype/nexus3
+$ docker ps
+```
 Hit ipaddress:8081. Nexus should be up and running. 
-Sign in --> default username is admin. To get the password, follow the below steps
-docker exec -it b95917a0a690 /bin/bash
-cat /opt/sonatype/sonatype-work/nexus3/admin.password - get the password from here and login to nexus after which you can update your password. (Janvi03@nexus)
+Sign in --> default username is admin. To get the password, follow the below steps.
+```bash
+$ docker exec -it b95917a0a690 /bin/bash
+$ cat /opt/sonatype/sonatype-work/nexus3/admin.password
+```
+Get the password from the above path and login to nexus after which you can update your password.
 
-Configuring Jenkins
+![Nexus]()
 
-Connect to the instance
-sudo apt update
-sudo apt install openjdk-17-jre-headless -y
-sudo wget -O /usr/share/keyrings/jenkins-keyring.asc \
+#### Configure Jenkins
+
+Connect to the Jenkins instance,
+Install Java
+```bash
+$ sudo apt update
+$ sudo apt install openjdk-17-jre-headless -y
+```
+Install Jenkins
+```bash
+$ sudo wget -O /usr/share/keyrings/jenkins-keyring.asc \
   https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
-echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc]" \
+$ echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc]" \
   https://pkg.jenkins.io/debian-stable binary/ | sudo tee \
   /etc/apt/sources.list.d/jenkins.list > /dev/null
-sudo apt-get update
-sudo apt-get install jenkins
+$ sudo apt-get update
+$ sudo apt-get install jenkins
+```
 
-jenkins is installed.
-Install docker on jenkins instance
-sudo apt-get update
-sudo apt-get install ca-certificates curl
-sudo install -m 0755 -d /etc/apt/keyrings
-sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-sudo chmod a+r /etc/apt/keyrings/docker.asc
+Install Docker on jenkins instance. Again follow the same commands as done while configuring Sonar and Nexus.
 
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-sudo apt-get update
+Install trivy
+```bash
+$ sudo apt-get install wget apt-transport-https gnupg lsb-release
+$ wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+$ echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
+$ sudo apt-get update
+$ sudo apt-get install trivy
+```
 
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-sudo chmod 666 /var/run/docker.sock
-
-install trivy
-sudo apt-get install wget apt-transport-https gnupg lsb-release
-wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
-sudo apt-get update
-sudo apt-get install trivy
-
-
-Hit Ipaddress:8080 --> get the passowrd from 
+Hit Ipaddress:8080 --> get the passowrd from:
+```bash
 sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+```
 Install suggested plugins
-create your user and password - save and finish
+Create your username and password - save and finish.
+
+![Jenkins]()
+
+## Phase 2 : Creating git repository and pushing the source code
+
+Create your git Repository. To clone this repo,
+```bash
+$ git clone https://github.com/janvykumar/CI-CD-Pipeline.git
+```
+
+
 
 
 
