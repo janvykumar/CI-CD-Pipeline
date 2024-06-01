@@ -404,6 +404,9 @@ Inside Configure, write the pipeline script. Refer to 'pipeline-script' file of 
 #### Successful Job
 ![successful-job](https://github.com/janvykumar/CI-CD-Pipeline/blob/main/Build.png?raw=true)
 
+#### Docker
+![Docker](https://github.com/janvykumar/CI-CD-Pipeline/blob/main/DockerHub.png?raw=true)
+
 #### SonarQube - Code Quality Analysis
 ![SonarQube](https://github.com/janvykumar/CI-CD-Pipeline/blob/main/Sonar-boardgame.png?raw=true)
 
