@@ -67,6 +67,8 @@ $ kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/co
 
 kubernetes is setup. 
 
+![K8 setup](https://github.com/janvykumar/CI-CD-Pipeline/blob/main/K8%20setup.png?raw=true)
+
 ### Create VM's for Sonar, Nexus and Jenkins
 
 Launch two instances for sonar and nexus.
@@ -227,6 +229,8 @@ Manage jenkins --> credentials --> system --> global credentials --> add credent
 
 Go to Sonar UI --> administration --> configuration --> webhooks --> create --> name - 'jenkins' --> url should be '<jenkins-url>/sonarqube-webhook/' --> Create.
 
+![sonar-webhook](https://github.com/janvykumar/CI-CD-Pipeline/blob/main/SonarQube-webhook.png?raw=true)
+
 ### Add maven components to pom.xml file
 
 In pom.xml file, you will see "distributionManagement" section where "maven-releases" and "maven-snapshots" are defined. We need to get the url's for both from Nexus and put it in pom.xml file. Refer pom.xml file of this repo.
@@ -374,6 +378,10 @@ Go to your Google Account --> manage google account --> security --> 2 step veri
 
 Jenkins --> manage jenkins --> system --> configure extended mail notification and email notification. Make sure to add global credential for mail.
 
+Below is a screenshot of all the credentials that needs to be added in Jenkins
+
+![Creds](https://github.com/janvykumar/CI-CD-Pipeline/blob/main/Jenkins-cred.png?raw=true)
+
 ### Create pipeline
 
 Jenkins Dashboard --> create new pipeline --> give name as 'BoardGame' --> choose 'pipeline' --> let's configure our pipeline.
@@ -381,6 +389,157 @@ Jenkins Dashboard --> create new pipeline --> give name as 'BoardGame' --> choos
 Inside Configure, write the pipeline script. Refer to 'pipeline-script' file of this repo to get the script.
 
 ### Run the job.
+
+![successful-job](https://github.com/janvykumar/CI-CD-Pipeline/blob/main/Build.png?raw=true)
+
+![SonarQube](https://github.com/janvykumar/CI-CD-Pipeline/blob/main/Sonar-boardgame.png?raw=true)
+
+![nexus](https://github.com/janvykumar/CI-CD-Pipeline/blob/main/maven-boardgame.png?raw=true)
+
+![mail](https://github.com/janvykumar/CI-CD-Pipeline/blob/main/mail-notification.png?raw=true)
+
+With that, our CI/CD Pipeline in complete
+
+## Phase 4 - Setup monitoring
+
+Create an Instance (Ubuntu 22.04) named "monitoring" of t2.medium type, having "ci/cd-sg" security group. Connect to the instance and follow as below.
+
+### Install prometheus
+```bash
+$ wget https://github.com/prometheus/prometheus/releases/download/v2.52.0/prometheus-2.52.0.linux-amd64.tar.gz
+$ tar -xvf prometheus-2.52.0.linux-amd64.tar.gz
+$ cd prometheus-2.52.0.linux-amd64/
+$ ./prometheus &
+```
+Hit http://IP:9090/ in your browser.
+
+### Install grafana
+```bash
+$ sudo apt-get install -y adduser libfontconfig1 musl
+$ wget https://dl.grafana.com/enterprise/release/grafana-enterprise_11.0.0_amd64.deb
+$ sudo dpkg -i grafana-enterprise_11.0.0_amd64.deb
+$ sudo /bin/systemctl start grafana-server
+```
+Hit http://IP:3000/
+Default username and password is admin and admin. Update it.
+
+### Install blackbox exporter
+```bash
+$ wget https://github.com/prometheus/blackbox_exporter/releases/download/v0.25.0/blackbox_exporter-0.25.0.linux-amd64.tar.gz
+$ tar -xvf blackbox_exporter-0.25.0.linux-amd64.tar.gz
+$ cd blackbox_exporter-0.25.0.linux-amd64/
+$ ./blackbox_exporter &
+```
+hit http:IP:9115/
+
+### Configure prometheus.yaml file
+```bash
+cd prometheus-2.52.0.linux-amd64/
+```
+
+Add the below section in your prometheus.yml (Make sure to provide the IP address of your instance) --> Save.
+```bash
+  - job_name: "prometheus"
+
+    # metrics_path defaults to '/metrics'
+    # scheme defaults to 'http'.
+
+    static_configs:
+      - targets: ["localhost:9090"]     
+
+  - job_name: 'blackbox'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]  # Look for a HTTP 200 response.
+    static_configs:
+      - targets:
+        - http://prometheus.io    # Target to probe with http.
+        - http://65.0.129.208:30685 # Target to probe with http on port 8080.
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 13.201.34.240:9115  # The blackbox exporter's real hostname:port.
+```
+
+###  Restart prometheus
+```bash
+$ pgrep prometheus
+$ kill <id>
+$ ./prometheus &
+```
+Refresh prometheus UI --> status --> targets --> You should be able to see the targets up and healthy.
+
+![prometheus-targets]()
+
+### Add prometheus as data source inside Grafana
+
+Go to grafana --> connections --> data sources --> add data source --> prometheus --> provide prometheus url --> save and test.
+
++ sign --> import dashboard
+
+Go to https://grafana.com/grafana/dashboards/7587-prometheus-blackbox-exporter/ to export the dashboard to our grafana dashboard --> get the id from the link.
+
+Come back to your grafana UI for importing dashboard --> paste and load the dashboard --> select prometheus for signcl-prometheus --> import 
+
+You will see all the metrices. 
+
+![Application-monitoring]()
+
+We have setup monitoring for the Application!
+
+### System monitoring
+
+#### let's monitor Jenkins 
+
+Go to Jenkins --> manage jenkins --> plugins --> Install "Prometheus metrics" plugin.
+
+In jenkins instance,
+```bash
+$ wget https://github.com/prometheus/node_exporter/releases/download/v1.8.1/node_exporter-1.8.1.linux-amd64.tar.gz
+$ tar -xvf node_exporter-1.8.1.linux-amd64.tar.gz
+$ cd node_exporter-1.8.1.linux-amd64/
+$ ./node_exporter &
+```
+Hit http://IP:9100/
+
+In monitoring instance,
+```bash
+$ cd prometheus-2.52.0.linux-amd64
+```
+
+Edit prometheus.yml file, add the below section (Edit as per your instance IP) --> Save.
+```bash
+- job_name: 'node_exporter'
+    static_configs:
+      - targets: ['13.235.95.88:9100']
+
+  - job_name: 'jenkins'
+    metrics_path: '/prometheus'
+    static_configs:
+      - targets: ['13.235.95.88:8080']
+```
+
+Restart prometheus.
+```bash
+```bash
+$ pgrep prometheus
+$ kill <id>
+$ ./prometheus &
+```
+You will see jenkins added to prometheus. Check out the above screenshot of prometheus targets.
+
+#### Import dashboard
+
+Import https://grafana.com/grafana/dashboards/1860-node-exporter-full/ to our Grafana dashboard --> get the ID from the link.
+
+Copy ID in our dashboard and load --> select prometheus datasource.
+
+Our system monitoring for Jenkins is ready.
+
+![system-monitoring]()
 
 
 
