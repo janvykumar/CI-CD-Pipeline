@@ -119,7 +119,7 @@ $ cat /opt/sonatype/sonatype-work/nexus3/admin.password
 ```
 Get the password from the above path and login to nexus after which you can update your password.
 
-![Nexus]()
+![Nexus](https://github.com/janvykumar/CI-CD-Pipeline/blob/main/nexus.png?raw=true)
 
 #### Configure Jenkins
 
@@ -151,6 +151,14 @@ $ sudo apt-get update
 $ sudo apt-get install trivy
 ```
 
+Install kubectl
+```bash
+$ curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.19.6/2021-01-05/bin/linux/amd64/kubectl
+$ chmod +x ./kubectl
+$ sudo mv ./kubectl /usr/local/bin
+$ kubectl version --short --client
+```
+
 Hit Ipaddress:8080 --> get the passowrd from:
 ```bash
 sudo cat /var/lib/jenkins/secrets/initialAdminPassword
@@ -158,15 +166,221 @@ sudo cat /var/lib/jenkins/secrets/initialAdminPassword
 Install suggested plugins
 Create your username and password - save and finish.
 
-![Jenkins]()
+![Jenkins](https://github.com/janvykumar/CI-CD-Pipeline/blob/main/Jenkins.png?raw=true)
 
 ## Phase 2 : Creating git repository and pushing the source code
 
-Create your git Repository. To clone this repo,
+Create your Git Repository. 
+```bash
+$ git clone <your git repo url>
+$ git checkout <your branch>
+Add your source code.
+$ git add .
+$ git commit -m "your commit message"
+$ git push
+```
+
+To clone this repo,
 ```bash
 $ git clone https://github.com/janvykumar/CI-CD-Pipeline.git
 ```
 
+## Phase 3 : CI/CD Pipeline, Deployemnt of Application, Mail notification
+
+### Install Plugins for Jenkins
+
+Jenkins Dashboard --> Manage jenkins --> plugins --> Install Eclipse Temurin installer, Config File Provider(for maven), Pipeline Maven Integration, Maven Integration, SonarQube Scanner, Docker, Docker Pipeline, Kubernetes, Kubernetes Client API, Kubernetes Credentials and Kubernetes CLI.
+
+### Configure the plugins
+
+Manage jenkins --> tools -->
+
+Add jdk - jdk17 - check mark 'install automatically' option --> Install from adoptium.net --> select jdk-17.0.9+9
+
+Add sonarQube scanner --> name can be given as 'sonar-scanner' --> go with the needed version(I am going with the latest)
+
+Add maven --> name - 'maven3' --> version 3.6.1
+
+Add docker --> name - 'docker' --> download from docker.io --> latest version
+
+Save
+
+### Configure sonarQube server in Jenkins
+
+Manage jenkins --> Credentials --> Global --> Add Credentials --> kind is 'secret text' --> Now, we need the tokens.
+
+To get the sonar tokens, 
+
+Go to SonarQube UI --> administration --> security --> users --> click on update token --> give name as 'sonar-token' --> Generate. Copy the token.
+
+Come back to jenkins and add credentials --> give the token in 'secret' --> id is 'sonar-token' --> description is 'sonar-token' --> Save. 
+
+Now, Let's configure SonarQube in Jenkins,
+
+Go to Manage jenkins --> system --> Add sonarQube --> Name is 'sonar' --> url is 'http://IPaddress_of_SonarInstance:9000/' --> server authentication token is 'sonar-token' --> Save.
+
+### Add GitHub credentials in Jenkins
+
+Manage jenkins --> credentials --> system --> global credentials --> add credentials -> Add username and personal access token of your GitHub Account.
+
+### Create SonarQube webhook
+
+Go to Sonar UI --> administration --> configuration --> webhooks --> create --> name - 'jenkins' --> url should be '<jenkins-url>/sonarqube-webhook/' --> Create.
+
+### Add maven components to pom.xml file
+
+In pom.xml file, you will see "distributionManagement" section where "maven-releases" and "maven-snapshots" are defined. We need to get the url's for both from Nexus and put it in pom.xml file. Refer pom.xml file of this repo.
+
+To get the url, 
+Go to Nexus UI --> Browse --> click on 'copy' to the right of maven-releases --> Copy the url --> put it in pom.xml inside the "maven-releases" section.
+Similarly, get the url of "maven-snapshots" and add it in pom.xml.
+
+```bash
+<distributionManagement>
+<repository>
+    <id>maven-releases</id>
+    <url>http://ip-address:8081/repository/maven-releases/</url>
+</repository>
+<snapshotRepository>
+    <id>maven-snapshots</id>
+    <url>http://ip-address:8081/repository/maven-snapshots/</url>
+</snapshotRepository>	
+</distributionManagement>
+```
+
+### Add maven configs in Jenkins
+
+Jenkins --> Manage jenkins --> managed files --> Global Maven settings.xml --> id is 'global-settings' --> save --> Add the maven configs in the settings.xml file as below --> Submit.
+
+```bash
+    <server>
+      <id>maven-releases</id>
+      <username>your nexus username</username>
+      <password>youe nexus password</password>
+    </server>
+    
+    <server>
+      <id>maven-snapshots</id>
+      <username>your nexus username</username>
+      <password>your nexus password</password>
+    </server>
+```
+
+### Deploy Application to kubernetes
+
+#### Create service account and rules for jenkins. 
+
+In master node, create a namespace called 'webapps' and add svc.yaml, role.yaml, bind.yaml and sec.yaml and apply them.
+
+svc.yaml
+```bash
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jenkins
+  namespace: webapps
+```
+
+role.yaml
+```bash
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: app-role
+  namespace: webapps
+rules:
+  - apiGroups:
+        - ""
+        - apps
+        - autoscaling
+        - batch
+        - extensions
+        - policy
+        - rbac.authorization.k8s.io
+    resources:
+      - pods
+      - secrets
+      - componentstatuses
+      - configmaps
+      - daemonsets
+      - deployments
+      - events
+      - endpoints
+      - horizontalpodautoscalers
+      - ingress
+      - jobs
+      - limitranges
+      - namespaces
+      - nodes
+      - pods
+      - persistentvolumes
+      - persistentvolumeclaims
+      - resourcequotas
+      - replicasets
+      - replicationcontrollers
+      - serviceaccounts
+      - services
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+```
+
+bind.yaml
+```bash
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: app-rolebinding
+  namespace: webapps 
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: app-role 
+subjects:
+- namespace: webapps 
+  kind: ServiceAccount
+  name: jenkins
+```
+
+sec.yaml
+```bash
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/service-account-token
+metadata:
+  name: mysecretname
+  annotations:
+    kubernetes.io/service-account.name: jenkins
+```
+
+Create namespace and apply the above yaml files.
+```bash
+$ kubectl create ns webapps
+$ kubectl apply -f svc.yaml
+$ kubectl apply -f role.yaml
+$ kubectl apply -f bind.yaml
+$ kubectl apply -f sec.yaml -n webapps
+```
+
+Get the token to authenticate Kubernetes to Jenkins.
+```bash
+$ kubectl describe secret mysecretname -n webapps
+```
+
+Go to Jenkins --> Add a secret text global credential --> paste the token inside secret --> id is 'k8-cred' --> Save.
+
+Add deployemnt-service.yaml file in your repo. Refer "deployment-service.yaml" file of this repo.
+
+### Configure Mail Notification
+Go to your Google Account --> manage google account --> security --> 2 step verification --> app passowrd --> give 'jenkins' as name and you will get a token
+
+Jenkins --> manage jenkins --> system --> configure extended mail notification and email notification. Make sure to add global credential for mail.
+
+### Create pipeline
+
+Jenkins Dashboard --> create new pipeline --> give name as 'BoardGame' --> choose 'pipeline' --> let's configure our pipeline.
+
+Inside Configure, write the pipeline script. Refer to 'pipeline-script' file of this repo to get the script.
+
+### Run the job.
 
 
 
