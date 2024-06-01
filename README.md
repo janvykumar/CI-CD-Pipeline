@@ -5,16 +5,22 @@ By the end of this journey, we'll not only master application-level CI/CD setups
 
 ## Phases
 Phase 1 - Setting up Infrastructure
+
 Phase 2 - Creating git repository and pushing the source code
+
 Phase 3 - CI/CD Pipeline, Deployemnt of Application, Mail notification
+
 Phase 4 - Setup monitoring
 
 ## Setting up Infrastructure
 
 ### Create VPC
 AWS management console --> VPC --> create VPC
+
 In AWS Console, create a VPC in your prefered location. The default VPC can also be used.
 
 ### Create security group 
 AWS management console --> EC2 --> security groups
+
 Create a security group "ci/cd-sg" and add inbound rules to open the required ports as shown in the below image. These are the ports that we would be using in this project.
+![inbound rules](https://github.com/janvykumar/CI-CD-Pipeline/blob/main/security-group.png?raw=true)
